@@ -1,5 +1,7 @@
 // -- GLOBAL --
 const MAX_CHARS = 150;
+const BASE_API_URL = "https://bytegrad.com/course-assets/js/1/api";
+
 const textareaEl = document.querySelector(".form__textarea");
 const counterEl = document.querySelector(".counter");
 const formEl = document.querySelector(".form");
@@ -7,7 +9,7 @@ const feedbackEl = document.querySelector(".feedbacks");
 const submitBtnEl = document.querySelector(".submit-btn");
 const spinnerEl = document.querySelector(".spinner");
 
-const renderFeedbackItem = feedbackItem => {
+const renderFeedbackItem = (feedbackItem) => {
   //new feedback item HTML
   const feedbackItemHTML = `
     <li class="feedback">
@@ -22,7 +24,9 @@ const renderFeedbackItem = feedbackItem => {
           <p class="feedback__company">${feedbackItem.company}</p>
           <p class="feedback__text">${feedbackItem.text}</p>
       </div>
-      <p class="feedback__date">${feedbackItem.daysAgo === 0 ? "NEW" : `${feedbackItem.daysAgo}d`}</p>
+      <p class="feedback__date">${
+        feedbackItem.daysAgo === 0 ? "NEW" : `${feedbackItem.daysAgo}d`
+      }</p>
   </li>
 `;
 
@@ -75,22 +79,39 @@ const submitHandler = (event) => {
 
   //we have text, now extract other info from text
   const hashtag = text.split(" ").find((word) => word.includes("#"));
-  const companyName = hashtag.substring(1);
+  const company = hashtag.substring(1);
   const badgeLetter = company.substring(0, 1).toUpperCase();
   const upvoteCount = 0;
   const daysAgo = 0;
 
-  //create feedback items content
+  //render feedback and list
   const feedbackItem = {
     upvoteCount: upvoteCount,
-    company: companyName,
+    company: company,
     badgeLetter: badgeLetter,
     daysAgo: daysAgo,
-    text: text
+    text: text,
   };
-
-  //render feedback item
   renderFeedbackItem(feedbackItem);
+
+  //send to server
+  fetch(`${BASE_API_URL}/feedbacks`, {
+    method: "POST",
+    body: JSON.stringify(feedbackItem),
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+  })
+    .then((response) => {
+      if (!response.ok) {
+        console.log("Something went wrong");
+        return;
+      }
+
+      console.log("Successfully submitted");
+    })
+    .catch((error) => console.log(error));
 
   //clear textarea
   textareaEl.value = "";
@@ -104,10 +125,36 @@ const submitHandler = (event) => {
 
 formEl.addEventListener("submit", submitHandler);
 
-
-
 // -- FEEDBACK LIST COMPONENT --
-fetch("https://bytegrad.com/course-assets/js/1/api/feedbacks")
+const clickHandler = (event) => {
+  // get clicked HTML-element
+  const clickedEL = event.target;
+  // determine
+  const upvoteIntention = clickedEL.className.includes("upvote");
+  //run option
+  if (upvoteIntention) {
+    //get button
+    const upvoteBtnEl = clickedEL.closest('.upvote')
+    //disable upvote button
+    upvoteBtnEl.disabled = true;
+    //get element
+    const upvoteCountEl = upvoteBtnEl.querySelector('.upvote__count')
+    // get count convert a number (+)
+    let upvoteCount = +upvoteCountEl.textContent;
+    // set count increment by 1
+    upvoteCountEl.textContent = ++upvoteCount;
+
+  } else {
+    //expand the clicked item
+    clickedEL.closest(".feedback").classList.toggle("feedback--expand");
+  }
+};
+
+feedbackEl.addEventListener("click", clickHandler);
+
+
+
+fetch(`${BASE_API_URL}/feedbacks`)
   .then((response) => response.json())
   .then((data) => {
     //remove spinner
